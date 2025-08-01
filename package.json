@@ -1,8 +1,8 @@
 {
-  "name": "bot",
+  "name": "instagram-bot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Bot para criação automatizada de contas no Instagram usando Puppeteer",
+  "main": "src/index.ts",
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc"
@@ -13,10 +13,12 @@
   "type": "commonjs",
   "dependencies": {
     "puppeteer": "^24.15.0",
-    "typescript": "^5.9.2"
+    "@faker-js/faker": "^9.9.0",
+    "typescript": "^5.4.5"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^20.11.30",
     "ts-node": "^10.9.2"
   }
 }
+
