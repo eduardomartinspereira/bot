@@ -1,75 +1,69 @@
 import puppeteer, { Page } from "puppeteer";
+import readline from "readline";
 
+// --- Interface e dados da conta ---
 interface Conta {
   email: string;
   nome: string;
   usuario: string;
   senha: string;
-  dataNascimento: {
-    dia: string;
-    mes: string;
-    ano: string;
-  };
+  dataNascimento: { dia: string; mes: string; ano: string };
 }
 
 const conta: Conta = {
-  email: "eduardopereirajordani@gmail.com",
-  nome: "Luiz Joger",
-  usuario: "luizj_oger",
+  email: "bosahi1747@im5z.com",
+  nome: "Diogo Alburquerque",
+  usuario: "sdjhjsu7347",
   senha: "SenhaForte@123",
-  dataNascimento: {
-    dia: "10",
-    mes: "1",   // janeiro
-    ano: "1995"
-  }
+  dataNascimento: { dia: "15", mes: "6", ano: "2001" }
 };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// --- Helpers ---
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-/** Clica no botão “Avançar” buscando pelo texto exato */
+function askQuestion(query: string): Promise<string> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve =>
+    rl.question(query, ans => { rl.close(); resolve(ans.trim()); })
+  );
+}
+
+// --- Clica no botão “Avançar” sem waitForSelector, só com pequena pausa ---
 async function clicarAvancar(page: Page, tentativa: number) {
+  console.log(`⏳ Tentando clicar no “Avançar” (${tentativa}ª)...`);
+  // pequena espera para o botão aparecer/renderizar
+  await sleep(1000);
+
   const clicou = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('button'))
-      .find(b => b.textContent?.trim() === 'Avançar');
-    if (btn) {
-      (btn as HTMLElement).click();
-      return true;
-    }
+    const txt = "avançar";
+    const btn = Array.from(document.querySelectorAll("button"))
+      .find(b => b.textContent?.toLowerCase().includes(txt));
+    if (btn) { (btn as HTMLElement).click(); return true; }
     return false;
   });
+
   console.log(
     clicou
-      ? `✔️ Clique no botão Avançar (${tentativa}ª tentativa).`
-      : `❌ Botão Avançar não encontrado (${tentativa}ª tentativa).`
+      ? `✔️ Clique no “Avançar” (${tentativa}ª) bem-sucedido.`
+      : `❌ Botão Avançar não encontrado (${tentativa}ª).`
   );
 }
 
 async function criarContaInstagram(conta: Conta) {
-  const browser = await puppeteer.launch({
-    headless: false,
-    args: ["--no-sandbox","--disable-setuid-sandbox"]
-  });
-
+  const browser = await puppeteer.launch({ headless: false, args: ["--no-sandbox"] });
   const page: Page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
-
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-    "AppleWebKit/537.36 (KHTML, like Gecko) " +
-    "Chrome/115.0.0.0 Safari/537.36"
-  );
 
   console.log("🔗 Acessando Instagram...");
   await page.goto("https://www.instagram.com/accounts/emailsignup/", {
     waitUntil: "networkidle2"
   });
 
-  console.log("✍️  Preenchendo e-mail, nome, usuário e senha...");
+  console.log("✍️ Preenchendo e-mail, nome, usuário e senha...");
   await page.type('input[name="emailOrPhone"]', conta.email, { delay: 200 });
-  await page.type('input[name="fullName"]',     conta.nome,   { delay: 200 });
-  await page.type('input[name="username"]',     conta.usuario,{ delay: 220 });
-  await page.type('input[name="password"]',     conta.senha,  { delay: 220 });
-
+  await page.type('input[name="fullName"]',     conta.nome,    { delay: 200 });
+  await page.type('input[name="username"]',     conta.usuario, { delay: 220 });
+  await page.type('input[name="password"]',     conta.senha,   { delay: 220 });
   await sleep(1000);
 
   const btnSubmit = await page.$('button[type="submit"]');
@@ -85,37 +79,45 @@ async function criarContaInstagram(conta: Conta) {
   await sleep(5000);
 
   console.log("📅 Preenchendo data de nascimento...");
-  // 1) Dia
-  await page.evaluate((d: string) => {
-    const el = document.querySelector('select[title="Dia:"]') as HTMLSelectElement;
-    el.value = d; el.dispatchEvent(new Event('change',{bubbles:true}));
-  }, conta.dataNascimento.dia);
-  await sleep(700);
+  for (const [sel, val] of [
+    ['select[title="Dia:"]', conta.dataNascimento.dia],
+    ['select[title="Mês:"]', conta.dataNascimento.mes],
+    ['select[title="Ano:"]', conta.dataNascimento.ano]
+  ] as [string,string][]) {
+    await page.evaluate((s,v) => {
+      const el = document.querySelector(s) as HTMLSelectElement;
+      el.value = v;
+      el.dispatchEvent(new Event("change",{bubbles:true}));
+    }, sel, val);
+    await sleep(700);
+  }
 
-  // 2) Mês
-  await page.evaluate((m: string) => {
-    const el = document.querySelector('select[title="Mês:"]') as HTMLSelectElement;
-    el.value = m; el.dispatchEvent(new Event('change',{bubbles:true}));
-  }, conta.dataNascimento.mes);
-  await sleep(700);
-
-  // 3) Ano
-  await page.evaluate((y: string) => {
-    const el = document.querySelector('select[title="Ano:"]') as HTMLSelectElement;
-    el.value = y; el.dispatchEvent(new Event('change',{bubbles:true}));
-  }, conta.dataNascimento.ano);
-  await sleep(700);
-
-  // 4) Clicar no botão Avançar
+  // 1ª tentativa de avançar
   await clicarAvancar(page, 1);
+  console.log("⏳ Aguardando campo de verificação…");
+  await sleep(3000);
 
-  console.log("⏳ Aguardando resultado...");
+  // === Etapa de VERIFICAÇÃO POR CÓDIGO ===
+  await page.waitForSelector(
+    'input[name="email_confirmation_code"], input[name="confirmationCode"]',
+    { visible: true, timeout: 120000 }
+  );
+
+  const code = await askQuestion("🔑 Digite o código enviado ao e-mail: ");
+  await page.type(
+    'input[name="email_confirmation_code"], input[name="confirmationCode"]',
+    code,
+    { delay: 100 }
+  );
+
+  // delay extra antes de avançar
+  await sleep(1000);
+  await clicarAvancar(page, 2);
+
+  console.log("⏳ Finalizando...");
   await sleep(8000);
-
   await browser.close();
-  console.log("✅ Navegador fechado. Fluxo concluído.");
+  console.log("✅ Conta criada. Navegador fechado.");
 }
 
-criarContaInstagram(conta).catch(err => {
-  console.error("❌ Erro ao criar conta:", err);
-});
+criarContaInstagram(conta).catch(err => console.error("❌ Erro ao criar conta:", err));
