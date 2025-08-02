@@ -5,6 +5,7 @@ import { faker } from "@faker-js/faker";
 
 // --- Helpers ---
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 function askQuestion(query: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve =>
@@ -13,7 +14,7 @@ function askQuestion(query: string): Promise<string> {
 }
 
 // --- Configuração manual do e-mail ---
-const emailManual = "miveyo8212@im5z.com";
+const emailManual = "giled14551@misehub.com";
 
 // --- Geração automática de nome, usuário e senha ---
 interface Credenciais {
@@ -43,19 +44,22 @@ function gerarCredenciais(): Credenciais {
   return { nome: fullName, usuario, senha };
 }
 
-// --- Função para clicar em "Avançar" ---
+// --- Função para clicar em "Avançar" em qualquer elemento role="button" ou <button> ---
 async function clicarAvancar(page: Page, tentativa: number): Promise<boolean> {
   console.log(`⏳ Tentando clicar no “Avançar” (${tentativa}ª)...`);
   await sleep(1000);
-  const buttons = await page.$$('button');
-  for (const btn of buttons) {
-    const text = (await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn)) || "";
-    if (text.includes("avançar")) {
-      await btn.click();
+
+  // Seleciona todos os elementos que atuam como botões
+  const handles = await page.$$('[role="button"], button');
+  for (const handle of handles) {
+    const text = (await page.evaluate(el => el.textContent?.trim().toLowerCase(), handle)) || "";
+    if (text === "avançar" || text.includes("avançar")) {
+      await handle.click();
       console.log(`✔️ Clique no “Avançar” (${tentativa}ª) bem-sucedido.`);
       return true;
     }
   }
+
   console.log(`❌ Botão Avançar não encontrado (${tentativa}ª).`);
   return false;
 }
@@ -94,10 +98,10 @@ async function criarContaInstagram() {
     ['select[title="Mês:"]', data.mes],
     ['select[title="Ano:"]', data.ano]
   ] as [string,string][]) {
-    await page.evaluate((s,v) => {
+    await page.evaluate((s, v) => {
       const el = document.querySelector(s) as HTMLSelectElement;
       el.value = v;
-      el.dispatchEvent(new Event("change",{ bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
     }, sel, val);
     await sleep(700);
   }
