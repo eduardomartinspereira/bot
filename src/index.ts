@@ -1,5 +1,6 @@
 import puppeteer, { Page } from "puppeteer";
 import readline from "readline";
+import * as fs from "fs";
 
 // --- Interface e dados da conta ---
 interface Conta {
@@ -11,11 +12,11 @@ interface Conta {
 }
 
 const conta: Conta = {
-  email: "bosahi1747@im5z.com",
-  nome: "Diogo Alburquerque",
-  usuario: "sdjhjsu7347",
+  email: "wepeya4235@misehub.com",
+  nome: "pedro carvalho",
+  usuario: "asbfaos9946",
   senha: "SenhaForte@123",
-  dataNascimento: { dia: "15", mes: "6", ano: "2001" }
+  dataNascimento: { dia: "19", mes: "8", ano: "2005" }
 };
 
 // --- Helpers ---
@@ -28,19 +29,24 @@ function askQuestion(query: string): Promise<string> {
   );
 }
 
-// --- Clica no botão “Avançar” sem waitForSelector, só com pequena pausa ---
+/**  
+ * Varre todos os <button>, compara textContent e clica no que contiver "avançar".  
+ */
 async function clicarAvancar(page: Page, tentativa: number) {
   console.log(`⏳ Tentando clicar no “Avançar” (${tentativa}ª)...`);
-  // pequena espera para o botão aparecer/renderizar
-  await sleep(1000);
+  await sleep(1000); // aguarda renderização
 
-  const clicou = await page.evaluate(() => {
-    const txt = "avançar";
-    const btn = Array.from(document.querySelectorAll("button"))
-      .find(b => b.textContent?.toLowerCase().includes(txt));
-    if (btn) { (btn as HTMLElement).click(); return true; }
-    return false;
-  });
+  const buttons = await page.$$('button');
+  let clicou = false;
+
+  for (const btn of buttons) {
+    const text = (await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn)) || "";
+    if (text.includes("avançar")) {
+      await btn.click();
+      clicou = true;
+      break;
+    }
+  }
 
   console.log(
     clicou
@@ -84,10 +90,10 @@ async function criarContaInstagram(conta: Conta) {
     ['select[title="Mês:"]', conta.dataNascimento.mes],
     ['select[title="Ano:"]', conta.dataNascimento.ano]
   ] as [string,string][]) {
-    await page.evaluate((s,v) => {
+    await page.evaluate((s, v) => {
       const el = document.querySelector(s) as HTMLSelectElement;
       el.value = v;
-      el.dispatchEvent(new Event("change",{bubbles:true}));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
     }, sel, val);
     await sleep(700);
   }
@@ -110,14 +116,27 @@ async function criarContaInstagram(conta: Conta) {
     { delay: 100 }
   );
 
-  // delay extra antes de avançar
-  await sleep(1000);
+  // 2ª tentativa de avançar usando a mesma função
   await clicarAvancar(page, 2);
 
   console.log("⏳ Finalizando...");
   await sleep(8000);
+
   await browser.close();
   console.log("✅ Conta criada. Navegador fechado.");
+
+  // --- Salva usuário e senha em contas.json ---
+  const filePath = "contas.json";
+  const entry = { usuario: conta.usuario, senha: conta.senha };
+  let lista: Array<{ usuario: string; senha: string }> = [];
+  if (fs.existsSync(filePath)) {
+    try {
+      lista = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch { /* ignora */ }
+  }
+  lista.push(entry);
+  fs.writeFileSync(filePath, JSON.stringify(lista, null, 2), "utf-8");
+  console.log(`📄 Dados salvos em ${filePath}:`, entry);
 }
 
 criarContaInstagram(conta).catch(err => console.error("❌ Erro ao criar conta:", err));
